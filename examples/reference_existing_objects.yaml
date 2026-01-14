@@ -1,0 +1,111 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: test
+data:
+  tenant.name: dGVzdC10ZW5hbnQ= # test-tenant
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: test
+data:
+  tenant.name: test-tenant
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-tenant
+spec:
+  dataModel: "tenancy"
+  endpoint: "tenants"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-tenant"
+      lookupKey: True
+    - path: "slug"
+      value: "test-tenant"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: vlan-group-temporary-test
+spec:
+  dataModel: "ipam"
+  endpoint: "vlan_groups"
+  allowExisting: true
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "temporary-test"
+      lookupKey: True
+    - path: "slug"
+      value: "temporary-test"
+      lookupKey: True
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: vlan-1234
+spec:
+  dataModel: "ipam"
+  endpoint: "vlans"
+  allowExisting: true
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-1234"
+      lookupKey: True
+    - path: vid
+      value: 1234
+      lookupKey: True
+    - path: "tenant.name"
+      valueFrom:
+        configMapKeyRef:
+          name: test
+          key: tenant.name
+      lookupKey: False
+    - path: "group.id"
+      valueFrom:
+        netboxObjRef:
+          dataModel: "ipam"
+          endpoint: "vlan_groups"
+          filter: "name=temporary-test"
+          path: "id"
+      lookupKey: true
+      lookupAlias: group_id
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: vlan-1324
+spec:
+  dataModel: "ipam"
+  endpoint: "vlans"
+  allowExisting: true
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-1324"
+      lookupKey: True
+    - path: vid
+      value: 1324
+      lookupKey: True
+    - path: "tenant.name"
+      valueFrom:
+        secretKeyRef:
+          name: test
+          key: tenant.name
+      lookupKey: False
+    - path: "group.id"
+      valueFrom:
+        netboxObjRef:
+          dataModel: "ipam"
+          endpoint: "vlan_groups"
+          filter: "name=temporary-test"
+          path: "id"
+      lookupKey: true
+      lookupAlias: group_id
