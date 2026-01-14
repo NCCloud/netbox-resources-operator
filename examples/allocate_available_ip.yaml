@@ -1,0 +1,53 @@
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-ip-address
+spec:
+  dataModel: "ipam"
+  endpoint: "ip_addresses"
+  allowExisting: true
+  preserveOnDelete: false
+  body:
+    - path: "address"
+      value: "10.0.0.5/24"
+      lookupKey: True
+    - path: "status"
+      value: "active"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: "test-ip-range"
+spec:
+  dataModel: "ipam"
+  endpoint: "ip-ranges"
+  allowExisting: true
+  preserveOnDelete: false
+  body:
+    - path: "start_address"
+      value: "10.0.0.1/24"
+      lookupKey: True
+    - path: "end_address"
+      value: "10.0.0.10/24"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-available-ip-address
+spec:
+  dataModel: "ipam"
+  endpoint: "ip-ranges"
+  allowExisting: true
+  preserveOnDelete: false
+  allocateAvailable: true
+  body:
+    # this is the id of the IP range we are looking for
+    - path: "id"
+      valueFrom:
+        netboxObjRef:
+          path: "id"
+          filter: "contains=10.0.0.1/24"
+          dataModel: "ipam"
+          endpoint: "ip-ranges"
+    - path: "status"
+      value: "active"

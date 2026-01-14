@@ -1,0 +1,58 @@
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-vlan-group
+spec:
+  dataModel: "ipam"
+  endpoint: "vlan_groups"
+  allowExisting: true
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-vlan-group"
+      lookupKey: True
+    - path: "slug"
+      value: "test-vlan-group"
+      lookupKey: True
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-group-available-vlan
+spec:
+  dataModel: "ipam"
+  endpoint: "vlan-groups"
+  allowExisting: true
+  preserveOnDelete: false
+  allocateAvailable: true
+  body:
+    - path: "id"
+      valueFrom:
+        netboxObjRef:
+          dataModel: "ipam"
+          endpoint: "vlan-groups"
+          filter: "slug=test-vlan-group"
+          path: "id"
+    - path: "name"
+      value: "available-vlan-local"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-global-available-vlan
+spec:
+  dataModel: "ipam"
+  endpoint: "vlans"
+  allowExisting: true
+  preserveOnDelete: false
+  allocateAvailable: true
+  body:
+    - path: "name"
+      value: "available-vlan-global"
+    - path: "group.id"
+      valueFrom:
+        netboxObjRef:
+          dataModel: "ipam"
+          endpoint: "vlan_groups"
+          filter: "name=test-vlan-group"
+          path: "id"

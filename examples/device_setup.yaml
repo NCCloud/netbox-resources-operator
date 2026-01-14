@@ -1,0 +1,144 @@
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-tenant
+spec:
+  dataModel: "tenancy"
+  endpoint: "tenants"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-tenant"
+      lookupKey: True
+    - path: "slug"
+      value: "test-tenant"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-location
+spec:
+  dataModel: "dcim"
+  endpoint: "locations"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "testing"
+      lookupKey: True
+    - path: "slug"
+      value: "testing"
+    - path: "site.name"
+      value: "test-site"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-platform
+spec:
+  dataModel: "dcim"
+  endpoint: "platforms"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-platform"
+      lookupKey: True
+    - path: "slug"
+      value: "test-platform"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-device-role
+spec:
+  dataModel: "dcim"
+  endpoint: "device-roles"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "Test"
+      lookupKey: True
+    - path: "slug"
+      value: "test"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-site
+spec:
+  dataModel: "dcim"
+  endpoint: "sites"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-site"
+      lookupKey: True
+    - path: "slug"
+      value: "test-site"
+    - path: "tenant.name"
+      value: "test-tenant"
+    - path: "facility"
+      value: "test-facility"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-device-type
+spec:
+  dataModel: "dcim"
+  endpoint: "device-types"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-device-type"
+    - path: "slug"
+      value: "test-device-type"
+    - path: "manufacturer.name"
+      value: "test-manufacturer"
+    - path: "model"
+      value: "test-model"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: "test-manufacturer"
+spec:
+  dataModel: "dcim"
+  endpoint: "manufacturers"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-manufacturer"
+    - path: "slug"
+      value: "test-manufacturer"
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-device
+spec:
+  dataModel: "dcim"
+  endpoint: "devices"
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: "name"
+      value: "test-device"
+    - path: "site.name"
+      value: "test-site"
+    - path: "tenant.name"
+      value: "test-tenant"
+    - path: location.name
+      value: testing
+    - path: platform.name
+      value: test-platform
+    - path: device_role.name
+      value: "Test"
+    - path: device_type.model
+      value: test-model
