@@ -14,7 +14,7 @@ To populate NetBox with real world data in an efficient manner, teams can use it
 
 Using Kubernetes custom resources to document network and infrastructure has multiple benefits:
 - Reconciliation. Normally, when automating the object creation, one needs to define the order they are created in to ensure the correct execution. Kubernetes operators reconcile continuously after errors until the desired state is reached
-- Teams may provision bare-metal of virtual machines using tools like Metal³, Tinkerbell, KubeVirt, etc. By using the operator, they can create corresponding infrastructure in NetBox right along the deployment manifests
+- Teams may provision bare-metal or virtual machines using tools like Metal³, Tinkerbell, KubeVirt, etc. By using the operator, they can create corresponding infrastructure in NetBox right along the deployment manifests
 - Fewer tools and management overhead. If teams already manage most of their infrastructure using Helm, they won't need to add other tools to create NetBox objects
 
 These and other use cases are covered by this operator.
