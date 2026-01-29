@@ -45,9 +45,9 @@ make docker-load
 
 4) Deploy the helm chart with your image. If your changes require updating the Helm chart itself, please open a corresponding PR in this repository https://github.com/NCCloud/charts
 
-```
+```bash
 helm repo add nccloud https://nccloud.github.io/charts
-helm install netbox-resources-operator nccloud/netbox-resources-operator --set image.tag="0.1.0-dev" # override the tag with the built image
+helm install netbox-resources-operator nccloud/netbox-resources-operator --set operatorConfig.netboxUrl="https://your-netbox-host" --set operatorConfig.netboxTokenSecretName="your-k8s-secret-with-read-write-netbox-token" --set image.tag="0.1.0-dev" # override the tag with the built image
 ```
 
 Alternatively, configure the environment variables according to the [config file](app/config.py) and run the project.
@@ -57,7 +57,7 @@ export NAMESPACE="default"
 kopf run main.py --verbose -A
 ```
 
-1) Destroy the cluster once you are done testing your changes.
+5) Destroy the cluster once you are done testing your changes.
 
 ```bash
 make cluster-delete

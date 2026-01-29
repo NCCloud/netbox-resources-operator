@@ -1,0 +1,79 @@
+# This example shows how to configure a primary IP for a device.
+# It assumes you already have a working device setup from the device_setup.yaml example.
+#
+# To configure a NetBox primary IP, you normally follow these steps:
+# 1) Create a device + interface
+# 2) Create an IP and assign it to the interface
+# 3) Update the device primary_ipv4 field with the IP
+# Due to the multi-step nature of this process, we can't create a device with the primary IP immediately
+# and need a way to reference it later
+# Since the operator manages only fields from the spec, you can configure 2 NetBoxObjects for the same device.
+# One will manage the device lifecycle and all fields, and the other one only the primary IP
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: device-interface-enp1s0
+spec:
+  dataModel: dcim
+  endpoint: interfaces
+  allowExisting: true
+  preserveOnDelete: false
+  body:
+    - path: name
+      value: enp1s0
+      lookupKey: True
+    - path: slug
+      value: enp1s0
+    - path: type
+      value: 1000base-t
+    - path: device.name
+      value: test-device
+      lookupAlias: device
+      lookupKey: True
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: ip-address-test-device-enp1s0
+spec:
+  dataModel: ipam
+  endpoint: ip-addresses
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+  - path: address
+    value: 10.0.0.1
+    lookupKey: True
+  - path: status
+    value: active
+  - path: assigned_object_type
+    value: dcim.interface
+  - path: assigned_object_id
+    valueFrom:
+      netboxObjRef:
+        dataModel: dcim
+        endpoint: interfaces
+        filter: device=test-device,name=enp1s0
+        path: id
+---
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: test-device-primary-ip
+spec:
+  dataModel: dcim
+  endpoint: devices
+  allowExisting: true # expect an existing device
+  preserveOnDelete: true # IMPORTANT: keep the device in NetBox if this resource is deleted
+  body:
+    - path: name
+      value: test-device
+      lookupKey: true
+    - path: primary_ip4
+      valueFrom:
+        netboxObjRef:
+          path: id
+          filter: "address=10.0.0.1"
+          dataModel: ipam
+          endpoint: ip-addresses
