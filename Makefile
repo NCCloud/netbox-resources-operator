@@ -1,35 +1,26 @@
-CLUSTER ?= netbox-resources-operator
-UV ?= uv
-KIND ?= kind
-DOCKER ?= docker
-DOCKER_ARGS ?= --load
-APP_NAME ?= ghcr.io/nccloud/netbox-resources-operator
-TAG ?= 0.1.0-dev
-IMG ?= ${APP_NAME}:${TAG}
-KIND_IMAGE ?= kindest/node:v1.35.0
-
 .PHONY: help
 help: ## show help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z0-9_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: docker-build
-docker-build: ## Build docker image.
-	$(DOCKER) buildx build -t $(IMG) . $(DOCKER_ARGS)
+docker-build: ## Build docker image
+	@./helper.sh build_operator_image
 
-.PHONY: docker-load
-docker-load: ## Load docker image in KIND.
-	$(KIND) load docker-image --name $(CLUSTER) $(IMG)
+.PHONY: docker-build-load
+docker-build-load: ## Build a docker image and load it in a kind cluster
+	@./helper.sh build_and_load_operator_image
 
 .PHONY: cluster
-cluster: ## Create a single node kind cluster.
-	$(KIND) create cluster --name $(CLUSTER) --image $(KIND_IMAGE)
+cluster: ## Create a single node kind cluster
+	@./helper.sh create_kind_cluster
+
+.PHONY: prepare-dev-environment
+prepare-dev-environment: ## Prepare the development environment
+	@./helper.sh prepare_dev_environment
 
 .PHONY: cluster-delete
-cluster-delete: ## Delete the kind cluster.
-	$(KIND) delete cluster --name $(CLUSTER)
-
-.PHONY: docker-all
-docker-all: docker-login image docker-push ## login to registry, build an image and push it
+cluster-delete: ## Delete the kind cluster
+	@./helper.sh delete_kind_cluster
 
 .PHONY: crds
 crds: ## generate local crds
@@ -39,9 +30,13 @@ crds: ## generate local crds
 init-project: ## create a venv and install packages using uv
 	@uv sync --locked
 
-.PHONY: test
-test: init-project ## run tests
-	@NETBOX_APP_ENV=test uv run coverage run --source="app" -m unittest discover tests && uv run coverage report
+.PHONY: test-unit
+test-unit: init-project ## run unit tests
+	@NETBOX_APP_ENV=test uv run coverage run --source="app" -m unittest discover tests/unit && uv run coverage report
+
+.PHONY: test-e2e
+test-e2e: init-project ## run e2e tests
+	@uv run pytest -vv tests/e2e
 
 .PHONY: lint
 lint: init-project ## run linter

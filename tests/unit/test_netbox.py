@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch, Mock
-from tests.util import DummyNetBoxRecord
+from tests.unit.util import DummyNetBoxRecord
 from app.netbox import get_or_create_netbox_tag, AvailableGlobalVlan, ExhaustedVlan
 
 

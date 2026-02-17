@@ -57,7 +57,7 @@ spec:
   preserveOnDelete: false
   body:
     - path: "name"
-      value: "test-1234"
+      value: "vlan-1234"
       lookupKey: True
     - path: vid
       value: 1234
@@ -89,7 +89,7 @@ spec:
   preserveOnDelete: false
   body:
     - path: "name"
-      value: "test-1324"
+      value: "vlan-1324"
       lookupKey: True
     - path: vid
       value: 1324
