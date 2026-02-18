@@ -1,0 +1,36 @@
+name: E2E Tests
+
+on:
+  pull_request:
+    paths:
+      - "app/**"
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  e2e-tests:
+    if: github.actor != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v6
+
+      - name: Install Kind
+        uses: helm/kind-action@v1
+        with:
+          install_only: true
+
+      - name: Install the latest version of uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Prepare Dev Environment
+        run: |
+          make prepare-dev-environment
+
+      - name: Run E2E Tests
+        run: |
+          make test-e2e

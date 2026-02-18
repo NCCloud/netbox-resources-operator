@@ -13,7 +13,8 @@ We are grateful for your willingness to contribute to this project! We are inter
 ### Technical Requirements
 
 * Must pass the CI job for linting. Please run `make lint` in the root of the project to know if the project complies with the requirements.
-* New code must be covered by tests and pass the corresponding CI job. Please run `make test` in the root of the project.
+* New code must be covered by unit tests and pass the corresponding CI job. Please run `make test-unit` in the root of the project.
+* The project must pass integration tests. Please run `make prepare-dev-environment && make test-e2e` in the root of the project.
 * All changes require reviews from the responsible organization members before the merge.
 
 Once changes have been merged, the release will be done by the responsible organization members.
@@ -28,26 +29,10 @@ You can easily run the operator by following these steps:
 make init-project
 ```
 
-
-2) Create a Kubernetes cluster or change the `kubectl` context to the existing one.
-
-```bash
-make cluster
-```
-
-
-3) Build the operator image and load it into the cluster.
+2) Create a Kubernetes cluster, install NetBox, and the operator.
 
 ```bash
-make docker-build
-make docker-load
-```
-
-4) Deploy the helm chart with your image. If your changes require updating the Helm chart itself, please open a corresponding PR in this repository https://github.com/NCCloud/charts
-
-```bash
-helm repo add nccloud https://nccloud.github.io/charts
-helm install netbox-resources-operator nccloud/netbox-resources-operator --set operatorConfig.netboxUrl="https://your-netbox-host" --set operatorConfig.netboxTokenSecretName="your-k8s-secret-with-read-write-netbox-token" --set image.tag="0.1.0-dev" # override the tag with the built image
+make prepare-dev-environment
 ```
 
 Alternatively, configure the environment variables according to the [config file](app/config.py) and run the project.
@@ -57,7 +42,7 @@ export NAMESPACE="default"
 kopf run main.py --verbose -A
 ```
 
-5) Destroy the cluster once you are done testing your changes.
+3) Destroy the cluster once you are done testing your changes.
 
 ```bash
 make cluster-delete

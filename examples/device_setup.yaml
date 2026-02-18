@@ -94,8 +94,6 @@ spec:
   allowExisting: false
   preserveOnDelete: false
   body:
-    - path: "name"
-      value: "test-device-type"
     - path: "slug"
       value: "test-device-type"
     - path: "manufacturer.name"
@@ -138,7 +136,7 @@ spec:
       value: testing
     - path: platform.name
       value: test-platform
-    - path: device_role.name
+    - path: role.name
       value: "Test"
     - path: device_type.model
       value: test-model

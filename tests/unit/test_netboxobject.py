@@ -2,7 +2,7 @@
 import unittest
 from kopf import PermanentError
 from unittest.mock import Mock, patch
-from tests.util import DummyNetBoxRecord
+from tests.unit.util import DummyNetBoxRecord
 from app.netboxobject import NetBoxObjectReconciler, MANAGED_OBJECT_DESCRIPTION
 from app.errors import NetBoxConflict, NetBoxObjectNotFound
 

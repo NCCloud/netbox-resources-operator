@@ -35,6 +35,9 @@ spec:
           path: "id"
     - path: "name"
       value: "available-vlan-local"
+    - path: tags
+      value:
+        - group-available-vlan
 ---
 apiVersion: spaceship.com/v1alpha1
 kind: NetBoxObject
@@ -56,3 +59,6 @@ spec:
           endpoint: "vlan_groups"
           filter: "name=test-vlan-group"
           path: "id"
+    - path: tags
+      value:
+        - global-available-vlan
