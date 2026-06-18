@@ -151,6 +151,63 @@ class TestNetBoxObjectReconciler(unittest.TestCase):
         self.assertEqual(expected, actual)
         self.assertEqual(mock_create_netbox_tags.call_count, 2)
 
+    def test__resolve_nested_values__plain_value(self):
+        self.assertEqual(
+            "connected",
+            self.netbox_obj_reconciler._resolve_nested_values("connected"),
+        )
+        self.assertEqual(
+            [1, 2], self.netbox_obj_reconciler._resolve_nested_values([1, 2])
+        )
+
+    @patch(
+        "app.netboxobject.NetBoxObjectReconciler._get_value_from_ref", return_value=42
+    )
+    def test__resolve_nested_values__ref_in_list_of_dicts(
+        self, mock_value_ref: Mock
+    ):
+        value = [
+            {
+                "object_type": "dcim.interface",
+                "object_id": {
+                    "valueFrom": {
+                        "netboxObjRef": {
+                            "dataModel": "dcim",
+                            "endpoint": "interfaces",
+                            "filter": "device=device-a,name=eth0",
+                            "path": "id",
+                        }
+                    }
+                },
+            }
+        ]
+
+        expected = [{"object_type": "dcim.interface", "object_id": 42}]
+        actual = self.netbox_obj_reconciler._resolve_nested_values(value)
+
+        self.assertEqual(expected, actual)
+        mock_value_ref.assert_called_once()
+
+    @patch(
+        "app.netboxobject.NetBoxObjectReconciler._get_value_from_ref", return_value=7
+    )
+    def test__resolve_nested_values__ref_in_nested_dict(self, mock_value_ref: Mock):
+        value = {
+            "outer": {
+                "inner": {
+                    "valueFrom": {
+                        "secretKeyRef": {"key": "token", "name": "test-secret"}
+                    }
+                }
+            }
+        }
+
+        expected = {"outer": {"inner": 7}}
+        actual = self.netbox_obj_reconciler._resolve_nested_values(value)
+
+        self.assertEqual(expected, actual)
+        mock_value_ref.assert_called_once()
+
     @patch("app.netboxobject.get_config_map_value", return_value="test description")
     @patch("app.netboxobject.get_secret_value", return_value=10)
     @patch(

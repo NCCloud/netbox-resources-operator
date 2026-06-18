@@ -1,26 +1,27 @@
 import logging
-from typing import Any
 from functools import lru_cache
+from typing import Any
+
+from apischema import ValidationError, deserialize
+from glom import PathAccessError, assign, glom
 from kopf import PermanentError
-from pynetbox.core.endpoint import Endpoint
 from pynetbox.core.app import App
+from pynetbox.core.endpoint import DetailEndpoint, Endpoint
 from pynetbox.core.query import RequestError
 from pynetbox.core.response import Record
-from pynetbox.core.endpoint import DetailEndpoint
-from pynetbox.models.ipam import IpAddresses, Vlans, Prefixes
-from glom import assign, glom, PathAccessError
-from apischema import deserialize, ValidationError
-from .netbox import nb, get_or_create_netbox_tag, AvailableGlobalVlan
+from pynetbox.models.ipam import IpAddresses, Prefixes, Vlans
+
+from .errors import NetBoxConflict, NetBoxObjectNotFound
 from .kubernetes import get_config_map_value, get_secret_value
-from .util import parse_filter_string, netbox_value_to_default
 from .models import (
-    NetBoxObjectBodyItem,
-    NetBoxObjectValueResolution,
     NetBoxObject,
+    NetBoxObjectBodyItem,
     NetBoxObjectStatusFields,
     NetBoxObjectValueFrom,
+    NetBoxObjectValueResolution,
 )
-from .errors import NetBoxConflict, NetBoxObjectNotFound
+from .netbox import AvailableGlobalVlan, get_or_create_netbox_tag, nb
+from .util import netbox_value_to_default, parse_filter_string
 
 logger = logging.getLogger("kopf.objects")
 
@@ -126,7 +127,7 @@ class NetBoxObjectReconciler:
         filter_set = self._get_object_filter(netbox_resolve.filter)
 
         netbox_object = endpoint.get(**filter_set)
-        # maybe the object is dependant on the existence of another object
+        # maybe the object is dependent on the existence of another object
         # that we manage but haven't created yet, let's try again in a couple of seconds
         if not netbox_object:
             raise NetBoxObjectNotFound(
@@ -202,6 +203,34 @@ class NetBoxObjectReconciler:
             "Cannot resolve valueFrom because no supported reference is provided"
         )
 
+    def _resolve_nested_values(self, value: Any) -> Any:
+        """
+        Recursively resolve any embedded valueFrom references inside a
+        list/dict value. This allows building NetBox fields that are arrays of
+        objects (e.g. cable a_terminations/b_terminations) from NetBox lookups,
+        which a single dot-separated path cannot express:
+
+            - object_type: dcim.interface
+              object_id:
+                valueFrom:
+                  netboxObjRef: {...}
+
+        A dict containing the "valueFrom" key is treated as a reference marker
+        and replaced with its resolved value; everything else is walked
+        recursively and returned unchanged.
+        """
+        if isinstance(value, dict):
+            if "valueFrom" in value:
+                value_from = deserialize(NetBoxObjectValueFrom, value["valueFrom"])
+                return self._get_value_from_ref(value_from)
+
+            return {k: self._resolve_nested_values(v) for k, v in value.items()}
+
+        if isinstance(value, list):
+            return [self._resolve_nested_values(item) for item in value]
+
+        return value
+
     def _get_body_item_value(self, body_item: NetBoxObjectBodyItem) -> Any:
         """
         Given NetBoxObjectBodyItem, get the resulting value
@@ -209,8 +238,9 @@ class NetBoxObjectReconciler:
         value = None
 
         if body_item.value is not None:
+            resolved_value = self._resolve_nested_values(body_item.value)
             value = self._get_netbox_compatible_value(
-                path=body_item.path, value=body_item.value
+                path=body_item.path, value=resolved_value
             )
 
         if body_item.value_from is not None:

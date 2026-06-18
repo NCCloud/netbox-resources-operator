@@ -1,0 +1,43 @@
+---
+# Connect two device interfaces with a cable.
+#
+# Cables in NetBox (3.3+) are created via array terminations
+# (a_terminations / b_terminations), each element being an object reference of
+# the form {object_type, object_id}. A single dot-separated `path` cannot build
+# such an array, so the object_id is resolved with a nested `valueFrom` inside
+# the array element.
+#
+# Each `netboxObjRef` filter must match exactly one interface (it uses plain
+# `.get()`), so fully qualify it by device + interface name.
+apiVersion: spaceship.com/v1alpha1
+kind: NetBoxObject
+metadata:
+  name: cable-device-a-to-device-b
+spec:
+  dataModel: dcim
+  endpoint: cables
+  allowExisting: false
+  preserveOnDelete: false
+  body:
+    - path: status
+      value: connected
+    - path: a_terminations
+      value:
+        - object_type: dcim.interface
+          object_id:
+            valueFrom:
+              netboxObjRef:
+                dataModel: dcim
+                endpoint: interfaces
+                filter: "device=device-a,name=eth0"
+                path: id
+    - path: b_terminations
+      value:
+        - object_type: dcim.interface
+          object_id:
+            valueFrom:
+              netboxObjRef:
+                dataModel: dcim
+                endpoint: interfaces
+                filter: "device=device-b,name=eth0"
+                path: id
