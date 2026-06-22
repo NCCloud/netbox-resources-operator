@@ -207,17 +207,7 @@ class NetBoxObjectReconciler:
         """
         Recursively resolve any embedded valueFrom references inside a
         list/dict value. This allows building NetBox fields that are arrays of
-        objects (e.g. cable a_terminations/b_terminations) from NetBox lookups,
-        which a single dot-separated path cannot express:
-
-            - object_type: dcim.interface
-              object_id:
-                valueFrom:
-                  netboxObjRef: {...}
-
-        A dict containing the "valueFrom" key is treated as a reference marker
-        and replaced with its resolved value; everything else is walked
-        recursively and returned unchanged.
+        objects (e.g. cable a_terminations/b_terminations) from NetBox lookups
         """
         if isinstance(value, dict):
             if "valueFrom" in value:
