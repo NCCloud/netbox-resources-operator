@@ -301,16 +301,17 @@ class NetBoxObjectReconciler:
         )
 
         if name == "prefixes" and has_prefix_length:
-            result_name = "prefixes"
+            endpoint = "prefixes"
         elif name in ("prefixes", "ip-ranges"):
-            result_name = "ip-addresses"
+            endpoint = "ip-addresses"
         elif name in ("vlan-groups", "vlans"):
-            result_name = "vlans"
+            endpoint = "vlans"
         else:
             return self.endpoint
 
-        app = App(nb, self.netbox_object.data_model)
-        return Endpoint(nb, app, result_name)
+        return self._get_object_endpoint(
+            data_model=self.netbox_object.data_model.value, endpoint=endpoint
+        )
 
     def _find_existing_object(self) -> Record | None:
         """
