@@ -1,20 +1,22 @@
-from typing import Any
-import kopf
 import logging
+from typing import Any
+
+import kopf
 from prometheus_client import start_http_server
-from app.models import NetBoxObjectStatusPhaseEnum
-from app.config import Settings
-from app.metrics import (
-    collect_operator_reconcile_metrics,
-    collect_operator_configuration_metrics,
-)
+
 from app.conditions import (
-    set_reconciliation_conditions,
-    set_reconciled_condition,
     set_failed_condition,
+    set_reconciled_condition,
+    set_reconciliation_conditions,
 )
-from app.handlers import handle_netboxobject_deletion, handle_netboxobject
+from app.config import Settings
 from app.crd import NETBOX_OBJECT_CRD_NAME_FULL, NETBOX_OBJECT_CRD_NAME_LOWER
+from app.handlers import handle_netboxobject, handle_netboxobject_deletion
+from app.metrics import (
+    collect_operator_configuration_metrics,
+    collect_operator_reconcile_metrics,
+)
+from app.models import NetBoxObjectStatusPhaseEnum
 
 app_settings = Settings()
 logger = logging.getLogger("kopf.objects")

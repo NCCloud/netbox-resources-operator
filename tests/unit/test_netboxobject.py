@@ -279,6 +279,94 @@ class TestNetBoxObjectReconciler(unittest.TestCase):
         mock_lookup_filter.assert_called_once()
         mock_get.assert_called_once()
 
+    def _make_reconciler(self, endpoint: str, body: list = None):
+        spec = {
+            "dataModel": "ipam",
+            "endpoint": endpoint,
+            "body": body or [{"path": "status", "value": "active"}],
+        }
+        return NetBoxObjectReconciler(k8s_object_name=self.k8s_object_name, spec=spec)
+
+    def test__allocation_result_endpoint__prefix_to_ip_address(self):
+        reconciler = self._make_reconciler("prefixes")
+        self.assertEqual("ip-addresses", reconciler._allocation_result_endpoint().name)
+
+    def test__allocation_result_endpoint__prefix_with_length_to_prefix(self):
+        reconciler = self._make_reconciler(
+            "prefixes",
+            body=[
+                {"path": "prefix_length", "value": 24},
+                {"path": "status", "value": "active"},
+            ],
+        )
+        self.assertEqual("prefixes", reconciler._allocation_result_endpoint().name)
+
+    def test__allocation_result_endpoint__ip_range_to_ip_address(self):
+        reconciler = self._make_reconciler("ip-ranges")
+        self.assertEqual("ip-addresses", reconciler._allocation_result_endpoint().name)
+
+    def test__allocation_result_endpoint__vlan_group_to_vlan(self):
+        reconciler = self._make_reconciler("vlan-groups")
+        self.assertEqual("vlans", reconciler._allocation_result_endpoint().name)
+
+    def test__allocation_result_endpoint__vlans_to_vlans(self):
+        reconciler = self._make_reconciler("vlans")
+        self.assertEqual("vlans", reconciler._allocation_result_endpoint().name)
+
+    def test__allocation_result_endpoint__unsupported_returns_self(self):
+        reconciler = self._make_reconciler("ip-addresses")
+        self.assertIs(reconciler.endpoint, reconciler._allocation_result_endpoint())
+
+    @patch("pynetbox.core.endpoint.Endpoint.get")
+    @patch("app.netboxobject.NetBoxObjectReconciler._allocation_result_endpoint")
+    @patch(
+        "app.netboxobject.NetBoxObjectReconciler._get_lookup_filter",
+        return_value={"interface_id": 5},
+    )
+    def test__find_existing_object__allocate_available_uses_result_endpoint(
+        self,
+        mock_lookup_filter: Mock,
+        mock_result_endpoint: Mock,
+        mock_self_get: Mock,
+    ):
+        existing = DummyNetBoxRecord({"id": 9})
+        result_endpoint = Mock()
+        result_endpoint.get.return_value = existing
+        mock_result_endpoint.return_value = result_endpoint
+
+        self.netbox_obj_reconciler.netbox_object.allocate_available = True
+        actual = self.netbox_obj_reconciler._find_existing_object()
+
+        self.assertEqual(existing, actual)
+        mock_lookup_filter.assert_called_once()
+        mock_result_endpoint.assert_called_once()
+        result_endpoint.get.assert_called_once_with(interface_id=5)
+        # the parent (self.endpoint) collection must not be queried
+        mock_self_get.assert_not_called()
+
+    @patch(
+        "pynetbox.core.endpoint.Endpoint.get",
+        return_value=DummyNetBoxRecord({"id": 3}),
+    )
+    @patch("app.netboxobject.NetBoxObjectReconciler._allocation_result_endpoint")
+    @patch(
+        "app.netboxobject.NetBoxObjectReconciler._get_lookup_filter",
+        return_value={"name": "test"},
+    )
+    def test__find_existing_object__not_allocate_available_uses_self_endpoint(
+        self,
+        mock_lookup_filter: Mock,
+        mock_result_endpoint: Mock,
+        mock_self_get: Mock,
+    ):
+        self.netbox_obj_reconciler.netbox_object.allocate_available = False
+        actual = self.netbox_obj_reconciler._find_existing_object()
+
+        self.assertEqual(mock_self_get.return_value, actual)
+        mock_lookup_filter.assert_called_once()
+        mock_result_endpoint.assert_not_called()
+        mock_self_get.assert_called_once_with(name="test")
+
     def test__get_removed_fields__no_old_spec(self):
         netbox_obj_reconciler = NetBoxObjectReconciler(
             k8s_object_name=self.k8s_object_name,

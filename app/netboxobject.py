@@ -98,8 +98,8 @@ class NetBoxObjectReconciler:
 
     def _get_object_endpoint(self, data_model: str, endpoint: str) -> Endpoint:
         app = App(nb, data_model)
-        endpoint = Endpoint(nb, app, endpoint)
-        return endpoint
+        object_endpoint = Endpoint(nb, app, endpoint)
+        return object_endpoint
 
     def _get_object_filter(self, filter_str: str) -> dict:
         """
@@ -289,6 +289,29 @@ class NetBoxObjectReconciler:
 
         return netbox_obj_filter
 
+    def _allocation_result_endpoint(self) -> Endpoint:
+        """
+        Find the resulting endpoint of the object.
+        When allocating available resources, the resulting endpoint may differ from parent,
+        e.g. prefixes -> ip-addresses
+        """
+        name = self.endpoint.name
+        has_prefix_length = any(
+            body_item.path == "prefix_length" for body_item in self.netbox_object.body
+        )
+
+        if name == "prefixes" and has_prefix_length:
+            result_name = "prefixes"
+        elif name in ("prefixes", "ip-ranges"):
+            result_name = "ip-addresses"
+        elif name in ("vlan-groups", "vlans"):
+            result_name = "vlans"
+        else:
+            return self.endpoint
+
+        app = App(nb, self.netbox_object.data_model)
+        return Endpoint(nb, app, result_name)
+
     def _find_existing_object(self) -> Record | None:
         """
         Find existing NetBox
@@ -297,7 +320,13 @@ class NetBoxObjectReconciler:
         if not netbox_obj_filter:
             return None
 
-        existing_obj = self.endpoint.get(**netbox_obj_filter)
+        # for allocateAvailable objects the allocated resource lives in the child
+        # endpoint (e.g. an IP under a prefix), so look it up there
+        endpoint = self.endpoint
+        if self.netbox_object.allocate_available:
+            endpoint = self._allocation_result_endpoint()
+
+        existing_obj = endpoint.get(**netbox_obj_filter)
 
         return existing_obj
 
@@ -356,14 +385,14 @@ class NetBoxObjectReconciler:
         We will try to find an existing object using Kubernetes resource status
         or user-provided spec
         """
-        netbox_obj: Record = None
+        netbox_obj: Record | None = None
         data = self._get_body_data()
 
         if self.k8s_object_status:
             endpoint = self.k8s_object_status.netboxobject_endpoint
             obj_id = self.k8s_object_status.netboxobject_id
 
-            netbox_obj: Record = endpoint.get(obj_id)
+            netbox_obj = endpoint.get(obj_id)
 
         # the object may or may not be managed by the operator
         # because we have no information about it in the status
@@ -420,7 +449,7 @@ class NetBoxObjectReconciler:
         parent_netbox_obj = None
 
         if parent_netbox_obj_id:
-            parent_netbox_obj: Record = self.endpoint.get(parent_netbox_obj_id)
+            parent_netbox_obj: Record | None = self.endpoint.get(parent_netbox_obj_id)
             if not parent_netbox_obj:
                 raise ValueError(
                     "Could not allocate a new object: "
@@ -548,7 +577,7 @@ class NetBoxObjectReconciler:
         obj_id = self.k8s_object_status.netboxobject_id
         endpoint = self.k8s_object_status.netboxobject_endpoint
 
-        netbox_obj: Record = endpoint.get(obj_id)
+        netbox_obj: Record | None = endpoint.get(obj_id)
         if not netbox_obj:
             logger.warning(
                 (
