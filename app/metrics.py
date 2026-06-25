@@ -24,12 +24,21 @@ OPERATOR_RECONCILE_TOTAL = Counter(
 
 OPERATOR_ACTIVE_WORKERS = Gauge(
     name=f"{METRIC_PREFIX}_operator_active_workers",
-    documentation="The number of currently active operator workers",
+    documentation="The number of reconcile handlers currently running",
 )
 
 OPERATOR_MAX_WORKERS = Gauge(
     name=f"{METRIC_PREFIX}_operator_max_workers",
-    documentation="The total number of workers, same as max_concurrent_reconciles",
+    documentation=(
+        "Max concurrent synchronous handler executions"
+    ),
+)
+
+OPERATOR_BATCHING_WORKER_LIMIT = Gauge(
+    name=f"{METRIC_PREFIX}_operator_batching_worker_limit",
+    documentation=(
+        "Max objects reconciled concurrently"
+    ),
 )
 
 HTTP_REQUEST_DURATION_SECONDS = Histogram(
@@ -78,6 +87,11 @@ def collect_operator_reconcile_metrics(func):
 def collect_operator_configuration_metrics(settings: kopf.OperatorSettings):
     if settings.execution.max_workers:
         OPERATOR_MAX_WORKERS.set(settings.execution.max_workers)
+
+    worker_limit = settings.batching.worker_limit
+    OPERATOR_BATCHING_WORKER_LIMIT.set(
+        worker_limit if worker_limit is not None else float("inf")
+    )
 
 
 class InstrumentedSession(Session):
