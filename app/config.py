@@ -20,9 +20,20 @@ class Settings(BaseSettings):
         default=True, description="Whether to verify NetBox SSL"
     )
 
-    operator_worker_limit: int = Field(
+    operator_execution_max_workers: int = Field(
         default=10,
-        description="How many workers can be running simultaneously on per-object event queue",
+        description=(
+            "Thread pool size for synchronous handlers (kopf execution.max_workers); "
+            "caps how many reconcile bodies run at once."
+        ),
+    )
+    operator_batching_worker_limit: int | None = Field(
+        default=None,
+        description=(
+            "How many objects (CRs) are processed concurrently (kopf "
+            "batching.worker_limit), the analog of controller-runtime's "
+            "MaxConcurrentReconciles. Unset means unlimited (kopf's default)."
+        ),
     )
     operator_retry_limit: int = Field(
         default=30,

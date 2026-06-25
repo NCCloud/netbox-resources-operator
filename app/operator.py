@@ -24,12 +24,12 @@ logger = logging.getLogger("kopf.objects")
 
 @kopf.on.startup()
 def configure(settings: kopf.OperatorSettings, **_):
-    # by default, the number of workers is unlimited
-    settings.batching.worker_limit = app_settings.operator_worker_limit
+    # thread pool for synchronous handlers
+    settings.execution.max_workers = app_settings.operator_execution_max_workers
+    # how many objects are reconciled concurrently
+    settings.batching.worker_limit = app_settings.operator_batching_worker_limit
     # don't post to Kubernetes events
     settings.posting.enabled = False
-    # by default, the number of execution workers is unlimited
-    settings.execution.max_workers = app_settings.operator_worker_limit
 
     collect_operator_configuration_metrics(settings)
 
