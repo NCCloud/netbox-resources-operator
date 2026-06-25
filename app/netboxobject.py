@@ -1,26 +1,27 @@
 import logging
-from typing import Any
 from functools import lru_cache
+from typing import Any
+
+from apischema import ValidationError, deserialize
+from glom import PathAccessError, assign, glom
 from kopf import PermanentError
-from pynetbox.core.endpoint import Endpoint
 from pynetbox.core.app import App
+from pynetbox.core.endpoint import DetailEndpoint, Endpoint
 from pynetbox.core.query import RequestError
 from pynetbox.core.response import Record
-from pynetbox.core.endpoint import DetailEndpoint
-from pynetbox.models.ipam import IpAddresses, Vlans, Prefixes
-from glom import assign, glom, PathAccessError
-from apischema import deserialize, ValidationError
-from .netbox import nb, get_or_create_netbox_tag, AvailableGlobalVlan
+from pynetbox.models.ipam import IpAddresses, Prefixes, Vlans
+
+from .errors import NetBoxConflict, NetBoxObjectNotFound
 from .kubernetes import get_config_map_value, get_secret_value
-from .util import parse_filter_string, netbox_value_to_default
 from .models import (
-    NetBoxObjectBodyItem,
-    NetBoxObjectValueResolution,
     NetBoxObject,
+    NetBoxObjectBodyItem,
     NetBoxObjectStatusFields,
     NetBoxObjectValueFrom,
+    NetBoxObjectValueResolution,
 )
-from .errors import NetBoxConflict, NetBoxObjectNotFound
+from .netbox import AvailableGlobalVlan, get_or_create_netbox_tag, nb
+from .util import netbox_value_to_default, parse_filter_string
 
 logger = logging.getLogger("kopf.objects")
 
@@ -97,8 +98,8 @@ class NetBoxObjectReconciler:
 
     def _get_object_endpoint(self, data_model: str, endpoint: str) -> Endpoint:
         app = App(nb, data_model)
-        endpoint = Endpoint(nb, app, endpoint)
-        return endpoint
+        object_endpoint = Endpoint(nb, app, endpoint)
+        return object_endpoint
 
     def _get_object_filter(self, filter_str: str) -> dict:
         """
@@ -126,7 +127,7 @@ class NetBoxObjectReconciler:
         filter_set = self._get_object_filter(netbox_resolve.filter)
 
         netbox_object = endpoint.get(**filter_set)
-        # maybe the object is dependant on the existence of another object
+        # maybe the object is dependent on the existence of another object
         # that we manage but haven't created yet, let's try again in a couple of seconds
         if not netbox_object:
             raise NetBoxObjectNotFound(
@@ -202,6 +203,24 @@ class NetBoxObjectReconciler:
             "Cannot resolve valueFrom because no supported reference is provided"
         )
 
+    def _resolve_nested_values(self, value: Any) -> Any:
+        """
+        Recursively resolve any embedded valueFrom references inside a
+        list/dict value. This allows building NetBox fields that are arrays of
+        objects (e.g. cable a_terminations/b_terminations) from NetBox lookups
+        """
+        if isinstance(value, dict):
+            if "valueFrom" in value:
+                value_from = deserialize(NetBoxObjectValueFrom, value["valueFrom"])
+                return self._get_value_from_ref(value_from)
+
+            return {k: self._resolve_nested_values(v) for k, v in value.items()}
+
+        if isinstance(value, list):
+            return [self._resolve_nested_values(item) for item in value]
+
+        return value
+
     def _get_body_item_value(self, body_item: NetBoxObjectBodyItem) -> Any:
         """
         Given NetBoxObjectBodyItem, get the resulting value
@@ -209,8 +228,9 @@ class NetBoxObjectReconciler:
         value = None
 
         if body_item.value is not None:
+            resolved_value = self._resolve_nested_values(body_item.value)
             value = self._get_netbox_compatible_value(
-                path=body_item.path, value=body_item.value
+                path=body_item.path, value=resolved_value
             )
 
         if body_item.value_from is not None:
@@ -269,6 +289,30 @@ class NetBoxObjectReconciler:
 
         return netbox_obj_filter
 
+    def _allocation_result_endpoint(self) -> Endpoint:
+        """
+        Find the resulting endpoint of the object.
+        When allocating available resources, the resulting endpoint may differ from parent,
+        e.g. prefixes -> ip-addresses
+        """
+        name = self.endpoint.name
+        has_prefix_length = any(
+            body_item.path == "prefix_length" for body_item in self.netbox_object.body
+        )
+
+        if name == "prefixes" and has_prefix_length:
+            endpoint = "prefixes"
+        elif name in ("prefixes", "ip-ranges"):
+            endpoint = "ip-addresses"
+        elif name in ("vlan-groups", "vlans"):
+            endpoint = "vlans"
+        else:
+            return self.endpoint
+
+        return self._get_object_endpoint(
+            data_model=self.netbox_object.data_model.value, endpoint=endpoint
+        )
+
     def _find_existing_object(self) -> Record | None:
         """
         Find existing NetBox
@@ -277,7 +321,13 @@ class NetBoxObjectReconciler:
         if not netbox_obj_filter:
             return None
 
-        existing_obj = self.endpoint.get(**netbox_obj_filter)
+        # for allocateAvailable objects the allocated resource lives in the child
+        # endpoint (e.g. an IP under a prefix), so look it up there
+        endpoint = self.endpoint
+        if self.netbox_object.allocate_available:
+            endpoint = self._allocation_result_endpoint()
+
+        existing_obj = endpoint.get(**netbox_obj_filter)
 
         return existing_obj
 
@@ -336,14 +386,14 @@ class NetBoxObjectReconciler:
         We will try to find an existing object using Kubernetes resource status
         or user-provided spec
         """
-        netbox_obj: Record = None
+        netbox_obj: Record | None = None
         data = self._get_body_data()
 
         if self.k8s_object_status:
             endpoint = self.k8s_object_status.netboxobject_endpoint
             obj_id = self.k8s_object_status.netboxobject_id
 
-            netbox_obj: Record = endpoint.get(obj_id)
+            netbox_obj = endpoint.get(obj_id)
 
         # the object may or may not be managed by the operator
         # because we have no information about it in the status
@@ -400,7 +450,7 @@ class NetBoxObjectReconciler:
         parent_netbox_obj = None
 
         if parent_netbox_obj_id:
-            parent_netbox_obj: Record = self.endpoint.get(parent_netbox_obj_id)
+            parent_netbox_obj: Record | None = self.endpoint.get(parent_netbox_obj_id)
             if not parent_netbox_obj:
                 raise ValueError(
                     "Could not allocate a new object: "
@@ -528,7 +578,7 @@ class NetBoxObjectReconciler:
         obj_id = self.k8s_object_status.netboxobject_id
         endpoint = self.k8s_object_status.netboxobject_endpoint
 
-        netbox_obj: Record = endpoint.get(obj_id)
+        netbox_obj: Record | None = endpoint.get(obj_id)
         if not netbox_obj:
             logger.warning(
                 (

@@ -62,7 +62,7 @@ deploy_netbox_resources_operator() {
   helm repo add nccloud https://nccloud.github.io/charts
   helm repo update nccloud
   helm upgrade --install netbox-resources-operator nccloud/netbox-resources-operator \
-    --set operatorConfig.netboxUrl="http://netbox.default.svc.cluster.local" \
+    --set operatorConfig.netboxUrl="http://netbox.default.svc.cluster.local." \
     --set operatorConfig.netboxTokenSecretName="$secret_name" \
     --set operatorConfig.operatorBackoffSeconds=1 \
     --set image.tag="$image" \
