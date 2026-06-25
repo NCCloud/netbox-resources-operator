@@ -6,18 +6,18 @@
 |-------------------- | -------: | -------: | ------: | --------: |
 | app/\_\_init\_\_.py |        0 |        0 |    100% |           |
 | app/conditions.py   |       24 |       24 |      0% |      1-90 |
-| app/config.py       |       18 |        0 |    100% |           |
+| app/config.py       |       19 |        0 |    100% |           |
 | app/crd.py          |       20 |       20 |      0% |      6-96 |
 | app/errors.py       |        4 |        0 |    100% |           |
 | app/handlers.py     |       22 |       22 |      0% |      1-50 |
 | app/kubernetes.py   |       19 |        0 |    100% |           |
-| app/metrics.py      |       44 |       27 |     39% |53-75, 79-80, 89-101 |
+| app/metrics.py      |       47 |       29 |     38% |62-84, 88-92, 103-115 |
 | app/models.py       |      122 |        0 |    100% |           |
 | app/netbox.py       |       33 |        1 |     97% |        13 |
-| app/netboxobject.py |      228 |       10 |     96% |85-86, 201, 233, 260, 322, 424, 436, 442, 561 |
-| app/operator.py     |       57 |       57 |      0% |     1-124 |
+| app/netboxobject.py |      251 |       10 |     96% |86-87, 202, 253, 280, 372, 474, 486, 492, 611 |
+| app/operator.py     |       57 |       57 |      0% |     1-126 |
 | app/util.py         |       24 |        0 |    100% |           |
-| **TOTAL**           |  **615** |  **161** | **74%** |           |
+| **TOTAL**           |  **642** |  **163** | **75%** |           |
 
 
 ## Setup coverage badge
